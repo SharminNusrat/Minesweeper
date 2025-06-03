@@ -251,8 +251,15 @@ class UI:
         stats_y = control_panel.y + 60
 
         if hasattr(self, 'start_time'):
-            elapsed_seconds = (pygame.time.get_ticks() - self.start_time) // 1000
-            time_text = f"Time: {elapsed_seconds // 60:02d}:{elapsed_seconds % 60:02d}"
+            if self.lost or self.won:
+                if not hasattr(self, 'end_time'):
+                    self.end_time = pygame.time.get_ticks()
+                
+                elapsed = (self.end_time - self.start_time) // 1000
+            else:
+                elapsed = (pygame.time.get_ticks() - self.start_time) // 1000  
+            
+            time_text = f"Time: {elapsed//60:02d}:{elapsed%60:02d}"
         else:
             time_text = "Time: 00:00"
 

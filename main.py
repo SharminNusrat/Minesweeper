@@ -18,6 +18,8 @@ def main():
         ui.lost = False
         ui.won = False
         ui.start_time = pygame.time.get_ticks()
+        if hasattr(ui, 'end_time'):
+            del ui.end_time
     
     clock = pygame.time.Clock()
     running = True
@@ -46,6 +48,9 @@ def main():
                         if ai_button.collidepoint(event.pos) and not ui.lost and not ui.won:
                             print("AI Move")
                             move = ui.ai.make_safe_move()
+                            if move and move in ui.flags:
+                                ui.flags.remove(move)
+                                print(f"AI removed incorrect flag at {move}")
                             if move is None:
                                 move = ui.ai.make_random_move()
                                 if move is None:
@@ -57,12 +62,17 @@ def main():
                             
                             if ui.game.is_mine(move):
                                 ui.lost = True
+                                ui.end_time = pygame.time.get_ticks()
                                 ui.revealed.add(move)
                             else:
                                 ui.revealed.add(move)
                                 ui.ai.add_knowledge(move, ui.game.nearby_mines(move))
-                                if len(ui.revealed) == 8*8 - 10:
+                                if len(ui.revealed) == 8*8 - len(ui.game.mines):
                                     ui.won = True
+                                    ui.end_time = pygame.time.get_ticks()
+                                    for mine in ui.game.mines:
+                                        if mine not in ui.flags:
+                                            ui.flags.add(mine)
                                                         
                         elif reset_button.collidepoint(event.pos):
                             print("Game Reset")
@@ -89,12 +99,17 @@ def main():
                                     if not ui.lost and not ui.won and cell not in ui.flags:
                                         if ui.game.is_mine(cell):
                                             ui.lost = True
+                                            ui.end_time = pygame.time.get_ticks()
                                             ui.revealed.add(cell)  
                                         else:
                                             ui.revealed.add(cell)
                                             ui.ai.add_knowledge(cell, ui.game.nearby_mines(cell))
-                                            if len(ui.revealed) == 8*8 - 10:
+                                            if len(ui.revealed) == 8*8 - len(ui.game.mines):
                                                 ui.won = True
+                                                ui.end_time = pygame.time.get_ticks()
+                                                for mine in ui.game.mines:
+                                                    if mine not in ui.flags:
+                                                        ui.flags.add(mine)
                                 elif event.button == 3:  
                                     print(f"Right clicked cell ({row}, {col})")
                                     if not ui.lost and not ui.won:
