@@ -8,6 +8,13 @@ class UI:
         self.title_font = None
         self.button_font = None
         self.small_font = None
+
+        self.game = None
+        self.ai = None
+        self.revealed = set()
+        self.flags = set()
+        self.lost = False
+        self.won = False
         
         self.colors = {
             "background": (251, 248, 225),      
@@ -32,6 +39,11 @@ class UI:
         self.board_rect = None
         self.bg_alpha = 35
         self.cell_size = 0
+
+        self.flag_img = pygame.image.load("assets/images/flag.png")
+        self.mine_img = pygame.image.load("assets/images/Mine.png")
+        print(f"Flag img loaded: {self.flag_img is not None}")
+        print(f"Mine img loaded: {self.mine_img is not None}")
         
     def init_screen(self, width, height):
         self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
@@ -171,16 +183,43 @@ class UI:
         
     def draw_clean_board(self):
         """Draw a minesweeper board with uniform, clearly visible cells"""
+        if not hasattr(self, 'game'):
+            return
+        
         for row in range(8):
             for col in range(8):
+                cell = (row, col)
                 cell_rect = pygame.Rect(
                     self.board_rect.x + col * self.cell_size,
                     self.board_rect.y + row * self.cell_size,
                     self.cell_size,
                     self.cell_size
                 )
-                
-                pygame.draw.rect(self.screen, self.colors["cell_hidden"], cell_rect)
+
+                if cell in self.revealed:
+                    pygame.draw.rect(self.screen, self.colors["cell_revealed"], cell_rect)
+                else:
+                    pygame.draw.rect(self.screen, self.colors["cell_hidden"], cell_rect)
+
+                if cell in self.flags:
+                    if hasattr(self, 'flag_img') and self.flag_img:
+                        self.screen.blit(
+                            pygame.transform.scale(self.flag_img, (self.cell_size, self.cell_size)), 
+                            cell_rect
+                        )
+                elif cell in self.revealed:
+                    if self.game.is_mine(cell):
+                        if hasattr(self, 'mine_img') and self.mine_img:
+                            self.screen.blit(
+                                pygame.transform.scale(self.mine_img, (self.cell_size, self.cell_size)), 
+                                cell_rect
+                            )
+                    else:
+                        count = self.game.nearby_mines(cell)
+                        if count > 0:
+                            text = self.small_font.render(str(count), True, self.colors["title"])
+                            text_rect = text.get_rect(center=cell_rect.center)
+                            self.screen.blit(text, text_rect)
                 
                 pygame.draw.rect(self.screen, self.colors["cell_border"], cell_rect, 2)
     
@@ -210,15 +249,35 @@ class UI:
         self.screen.blit(panel_title, title_rect)
         
         stats_y = control_panel.y + 60
+
+        if hasattr(self, 'start_time'):
+            elapsed_seconds = (pygame.time.get_ticks() - self.start_time) // 1000
+            time_text = f"Time: {elapsed_seconds // 60:02d}:{elapsed_seconds % 60:02d}"
+        else:
+            time_text = "Time: 00:00"
+
+        if self.lost:
+            status_text = "GAME OVER"
+            status_color = self.colors["danger"]
+        elif self.won:
+            status_text = "YOU WON!"
+            status_color = self.colors["safe"]
+        else:
+            status_text = "PLAYING"
+            status_color = self.colors["accent"]
+            
+        
         stats_font = self.small_font
-        
-        mines_text = stats_font.render("Mines: 10", True, self.colors["danger"])
+        mines_text = stats_font.render(f"Mines: {len(self.flags)}/10", True, self.colors["danger"])
         self.screen.blit(mines_text, (control_panel.x + 25, stats_y))
+
+        time_surface = stats_font.render(time_text, True, self.colors["button_text"])
+        self.screen.blit(time_surface, (control_panel.x + 25, stats_y + 25))
         
-        time_text = stats_font.render("Time: 00:45", True, self.colors["button_text"])
-        self.screen.blit(time_text, (control_panel.x + 25, stats_y + 25))
+        status_surface = stats_font.render(status_text, True, status_color)
+        self.screen.blit(status_surface, (control_panel.x + 25, stats_y + 50))
         
-        line_y = stats_y + 60
+        line_y = stats_y + 90
         pygame.draw.line(self.screen, self.colors["cell_border"], 
                         (control_panel.x + 25, line_y), 
                         (control_panel.right - 25, line_y), 2)
